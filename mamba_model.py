@@ -3,15 +3,17 @@ import torch.nn.functional as F
 import random
 import numpy as np
 import torch.nn as nn
-from mamba import ResidualBlock, MambaConfig
+from mamba import MambaConfig, Mamba
+from atten_model import LayerNorm
 
 class MambaTwo(nn.Module):
-    def __init__(self, config: MambaConfig):
+    def __init__(self, config: MambaConfig, vocab_size: int):
         super().__init__()
 
         self.config = config
-        self.layers = nn.ModuleList([ResidualBlock(config) for _ in range(2)])
-        self.head = nn.Linear(config.d_model, config.d_state)
+        self.embed = nn.Embedding(vocab_size, config.d_model)
+        self.mambda = Mamba(config)
+        self.head = nn.Linear(config.d_model, vocab_size)
     def forward(self, x):
         # x : (B, L, D)
 
