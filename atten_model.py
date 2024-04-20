@@ -61,7 +61,7 @@ class BaseNet(nn.Module):
             pe_emb = self.pe(pos) if self.is_pe else 0
             x = x + pe_emb
         for layer, ln in zip(self.att, self.ln):
-            x = ln(layer(x))
+            x = ln(layer(x) + x)
             print(f'{x.size()=}')
         x = self.head(x)
         return x

@@ -48,7 +48,7 @@ class HybridA(nn.Module):
     def forward(self, x):
         x = self.embed(x)
         x = self.mamba1(x)
-        x = self.ln(self.atten_layer(x))
+        x = self.ln(self.atten_layer(x) + x)
         x = self.mamba2(x)
         x = self.head(x)
         return x
