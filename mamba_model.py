@@ -15,16 +15,16 @@ class MambaTwo(nn.Module):
         self.mambda = Mamba(config)
         self.norm_f = RMSNorm(self.config.d_model)
 
-        self.lm_head = nn.Linear(self.config.d_model, self.lm_config.vocab_size, bias=False)
+        # self.lm_head = nn.Linear(self.config.d_model, self.lm_config.vocab_size, bias=False)
         self.head = nn.Linear(config.d_model, vocab_size)
     def forward(self, x):
         # x : (B, L, D)
 
-        # output : (B, L, vocab_size)
+        # logits : (B, L, vocab_size)
 
         x = self.embed(x)
         x = self.mambda(x)
-        #x = self.norm_f(x)
+        x = self.norm_f(x)
         logits = self.head(x)
         return logits
     
