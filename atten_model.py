@@ -73,14 +73,14 @@ class RotaryPositionalEmbedding(nn.Module):
         # Create a rotation matrix.
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        rotation_matrix = np.zeros(d_model, d_model)
+        rotation_matrix = np.zeros((d_model, d_model))
         for i in range(d_model):
             for j in range(d_model):
                 rotation_matrix[i, j] = np.cos(i * j * 0.01)
         self.rotation_matrix = torch.from_numpy(rotation_matrix).to(self.device)
 
         # Create a positional embedding matrix.
-        positional_embedding = np.zeros(max_seq_len, d_model)
+        positional_embedding = np.zeros((max_seq_len, d_model))
         for i in range(max_seq_len):
             for j in range(d_model):
                 positional_embedding[i, j] = np.cos(i * j * 0.01)
