@@ -156,3 +156,22 @@ def get_rotary_matrix(context_len: int, embedding_dim: int) -> torch.Tensor:
     R[:, 2*slice_i+1, 2*slice_i] = sin_values
     R[:, 2*slice_i+1, 2*slice_i+1] = cos_values
     return R
+
+
+class RoPEBlock(nn.Module):
+    def __init__(self, embed_dim, max_len=11):
+        super(Block, self).__init__()
+        self.embed_dim = embed_dim
+        self.max_len = max_len
+        self.c_attn = nn.Linear(embed_dim, embed_dim*3)
+        self.register_buffer('mask', torch.tril(torch.ones(max_len, max_len)))
+        self.rope = get_rotary_matrix(max_len, embedding_dim=embed_dim)
+    def forward(self, x):
+        T = x.size(1)
+        q, k, v = self.c_attn(x).chunk(3, dim=-1)
+        
+        queries_rot = (k.transpose(0,1) @ self.rope).transpose(0,1)
+        keys_rot = (k.transpose(0,1) @ self.rope).transpose(0,1)
+        y = torch.nn.functional.scaled_dot_product_attention(q, keys_rot, queries_rot, is_causal=True)
+        return y
+    
