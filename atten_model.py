@@ -106,7 +106,7 @@ class AttnRope(nn.Module):
     def __init__(self, vocab_size, embed_dim, 
                  max_len=11, attn_layers=2, block=None,
                  **kwargs):
-        super(BaseNet, self).__init__()
+        super().__init__()
         if block is None:
             raise ValueError("block type should be provided.")
         self.vocab_size = vocab_size
