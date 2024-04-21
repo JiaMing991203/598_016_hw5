@@ -10,8 +10,7 @@ from atten_model import LayerNorm, Block
 class HybridA(nn.Module):
     def __init__(self, vocab_size: int,
                  config: MambaConfig,
-                 max_len: int = 11,
-                 attn_layers: int = 1) -> None:
+                 max_len: int = 11) -> None:
         super().__init__()
         assert config.n_layers == 1
         self.embed_dim = config.d_model
@@ -30,11 +29,10 @@ class HybridA(nn.Module):
     
     
     
-class HybridA(nn.Module):
+class HybridB(nn.Module):
     def __init__(self, vocab_size: int,
                  config: MambaConfig,
-                 max_len: int = 11,
-                 attn_layers: int = 1) -> None:
+                 max_len: int = 11) -> None:
         super().__init__()
         assert config.n_layers == 1
         self.embed_dim = config.d_model

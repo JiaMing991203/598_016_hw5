@@ -35,11 +35,14 @@ class MambaLMConfig(MambaConfig):
 
 
 class MambaLM(nn.Module):
-    def __init__(self, lm_config: MambaLMConfig):
+    def __init__(self, lm_config: MambaLMConfig,
+                 n_layers: int = 2,
+                 d_model: int = 8):
         super().__init__()
         self.lm_config = lm_config
         self.config = lm_config.to_mamba_config()
-
+        self.config.d_model = d_model
+        self.config.n_layers = n_layers
         self.embedding = nn.Embedding(self.lm_config.vocab_size, self.config.d_model)
         self.mamba = Mamba(self.config)
         self.norm_f = RMSNorm(self.config.d_model)
