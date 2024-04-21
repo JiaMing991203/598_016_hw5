@@ -23,7 +23,7 @@ class HybridA(nn.Module):
     def forward(self, x):
         x = self.embed(x)
         x = self.mamba(x)
-        x = self.ln(self.atten_layer(x))
+        x = self.ln(self.atten_layer(x) + x) # residual norm
         x = self.head(x)
         return x
     
@@ -46,7 +46,7 @@ class HybridB(nn.Module):
     def forward(self, x):
         x = self.embed(x)
         x = self.mamba1(x)
-        x = self.ln(self.atten_layer(x) + x)
+        x = self.ln(self.atten_layer(x) + x) # residual norm
         x = self.mamba2(x)
         x = self.head(x)
         return x

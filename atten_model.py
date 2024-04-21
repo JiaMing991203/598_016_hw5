@@ -109,28 +109,30 @@ class RotaryPositionalEmbedding(nn.Module):
 class AttnRope(nn.Module):
     def __init__(self, vocab_size, embed_dim, 
                  max_len=11, attn_layers=2, block=None,
-                 **kwargs):
+                 context_len = 10, **kwargs):
         super().__init__()
-        if block is None:
-            raise ValueError("block type should be provided.")
+        # if block is None:
+        #     raise ValueError("block type should be provided.")
         self.vocab_size = vocab_size
         self.max_len = max_len
         # self.is_pe = is_pe
         self.embed = nn.Embedding(vocab_size, embed_dim)
-        self.pe = nn.ModuleList([RotaryPositionalEmbedding(embed_dim, max_len) for _ in range(attn_layers)])
-        self.att = nn.ModuleList([block(embed_dim, max_len, **kwargs) for _ in range(attn_layers)])
+        # self.pe = nn.ModuleList([RotaryPositionalEmbedding(embed_dim, max_len) for _ in range(attn_layers)])
+        self.att = nn.ModuleList([RoPEBlock(embed_dim, max_len,context_len, **kwargs) for _ in range(attn_layers)])
         self.ln = nn.ModuleList([LayerNorm(embed_dim, True) for _ in range(attn_layers)])
         self.head = nn.Linear(embed_dim, vocab_size)
         
     def forward(self, x):
         x = self.embed(x)
-        for pe_emb, layer, ln in zip(self.pe, self.att, self.ln):
-            x = ln(layer(pe_emb(x)))
+        for layer, ln in zip(self.att, self.ln):
+            x = ln(layer(x))
         x = self.head(x)
         return x
     
     
-def get_rotary_matrix(context_len: int, embedding_dim: int) -> torch.Tensor:
+def get_rotary_matrix(max_seq_len:int, 
+                      context_len:int, 
+                      embedding_dim:int) -> torch.Tensor:
     """
     Generate the Rotary Matrix for ROPE
 
@@ -141,7 +143,7 @@ def get_rotary_matrix(context_len: int, embedding_dim: int) -> torch.Tensor:
     Returns:
         torch.Tensor: the rotary matrix of dimension context_len x embedding_dim x embedding_dim
     """
-    R = torch.zeros((context_len, embedding_dim, embedding_dim), requires_grad=False)
+    R = torch.zeros((max_seq_len, embedding_dim, embedding_dim), requires_grad=False)
     positions = torch.arange(1, context_len+1).unsqueeze(1)
     # Create matrix theta (shape: context_len  x embedding_dim // 2)
     slice_i = torch.arange(0, embedding_dim // 2)
@@ -151,27 +153,32 @@ def get_rotary_matrix(context_len: int, embedding_dim: int) -> torch.Tensor:
     cos_values = torch.cos(m_theta)
     sin_values = torch.sin(m_theta)
     # Populate the rotary matrix R using 2D slicing
-    R[:, 2*slice_i, 2*slice_i] = cos_values
-    R[:, 2*slice_i, 2*slice_i+1] = -sin_values
-    R[:, 2*slice_i+1, 2*slice_i] = sin_values
-    R[:, 2*slice_i+1, 2*slice_i+1] = cos_values
+    R[:context_len, 2*slice_i, 2*slice_i] = cos_values
+    R[:context_len, 2*slice_i, 2*slice_i+1] = -sin_values
+    R[:context_len, 2*slice_i+1, 2*slice_i] = sin_values
+    R[:context_len, 2*slice_i+1, 2*slice_i+1] = cos_values
+    R[context_len:] = torch.eye(embedding_dim)
     return R
 
 
 class RoPEBlock(nn.Module):
-    def __init__(self, embed_dim, max_len=11):
-        super(Block, self).__init__()
+    def __init__(self, embed_dim, max_len=11, context_len: int = 10):
+        super().__init__()
         self.embed_dim = embed_dim
         self.max_len = max_len
         self.c_attn = nn.Linear(embed_dim, embed_dim*3)
+        self.rope = get_rotary_matrix(max_len, context_len, embedding_dim=embed_dim)
+        self.context_len = context_len
         self.register_buffer('mask', torch.tril(torch.ones(max_len, max_len)))
-        self.rope = get_rotary_matrix(max_len, embedding_dim=embed_dim)
     def forward(self, x):
-        T = x.size(1)
+        # context_len = x.size(1)
         q, k, v = self.c_attn(x).chunk(3, dim=-1)
-        
-        queries_rot = (k.transpose(0,1) @ self.rope).transpose(0,1)
-        keys_rot = (k.transpose(0,1) @ self.rope).transpose(0,1)
-        y = torch.nn.functional.scaled_dot_product_attention(q, keys_rot, queries_rot, is_causal=True)
+        # q_slice = q[:, :self.context_len, :]
+        # k_slice = k[:, :self.context_len, :]
+        q_slice_rot = (q.transpose(0,1) @ self.rope[:self.context_len]).transpose(0,1)
+        k_slice_rot = (k.transpose(0,1) @ self.rope[:self.context_len]).transpose(0,1)
+        # q[:, :self.context_len, :] = q_slice_rot
+        # k[:, :self.context_len, :] = k_slice_rot
+        y = torch.nn.functional.scaled_dot_product_attention(q, k, v, is_causal=True)
         return y
     
