@@ -164,21 +164,23 @@ def get_rotary_matrix(max_seq_len:int,
 class RoPEBlock(nn.Module):
     def __init__(self, embed_dim, max_len=11, context_len: int = 10):
         super().__init__()
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.embed_dim = embed_dim
         self.max_len = max_len
         self.c_attn = nn.Linear(embed_dim, embed_dim*3)
-        self.rope = get_rotary_matrix(max_len, context_len, embedding_dim=embed_dim)
+        self.rope = get_rotary_matrix(max_len, context_len, embedding_dim=embed_dim).to(self.device)
         self.context_len = context_len
         self.register_buffer('mask', torch.tril(torch.ones(max_len, max_len)))
     def forward(self, x):
         # context_len = x.size(1)
         q, k, v = self.c_attn(x).chunk(3, dim=-1)
+        
         # q_slice = q[:, :self.context_len, :]
         # k_slice = k[:, :self.context_len, :]
         q_slice_rot = (q.transpose(0,1) @ self.rope[:self.context_len]).transpose(0,1)
         k_slice_rot = (k.transpose(0,1) @ self.rope[:self.context_len]).transpose(0,1)
         # q[:, :self.context_len, :] = q_slice_rot
         # k[:, :self.context_len, :] = k_slice_rot
-        y = torch.nn.functional.scaled_dot_product_attention(q, k, v, is_causal=True)
+        y = torch.nn.functional.scaled_dot_product_attention(q_slice_rot, k_slice_rot, v, is_causal=True)
         return y
     
