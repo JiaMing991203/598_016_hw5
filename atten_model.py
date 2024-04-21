@@ -128,3 +128,31 @@ class AttnRope(nn.Module):
             x = ln(layer(pe_emb(x)))
         x = self.head(x)
         return x
+    
+    
+def get_rotary_matrix(context_len: int, embedding_dim: int) -> torch.Tensor:
+    """
+    Generate the Rotary Matrix for ROPE
+
+    Args:
+        context_len (int): context len
+        embedding_dim (int): embedding dim
+
+    Returns:
+        torch.Tensor: the rotary matrix of dimension context_len x embedding_dim x embedding_dim
+    """
+    R = torch.zeros((context_len, embedding_dim, embedding_dim), requires_grad=False)
+    positions = torch.arange(1, context_len+1).unsqueeze(1)
+    # Create matrix theta (shape: context_len  x embedding_dim // 2)
+    slice_i = torch.arange(0, embedding_dim // 2)
+    theta = 10000. ** (-2.0 * (slice_i.float()) / embedding_dim) 
+    m_theta = positions * theta
+    # Create sin and cos values
+    cos_values = torch.cos(m_theta)
+    sin_values = torch.sin(m_theta)
+    # Populate the rotary matrix R using 2D slicing
+    R[:, 2*slice_i, 2*slice_i] = cos_values
+    R[:, 2*slice_i, 2*slice_i+1] = -sin_values
+    R[:, 2*slice_i+1, 2*slice_i] = sin_values
+    R[:, 2*slice_i+1, 2*slice_i+1] = cos_values
+    return R
