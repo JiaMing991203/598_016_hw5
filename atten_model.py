@@ -66,6 +66,42 @@ class BaseNet(nn.Module):
         x = self.head(x)
         return x
     
+class BaseNetNoRes(nn.Module):
+    def __init__(self, vocab_size, embed_dim, 
+                 is_pe = False, max_len=11, 
+                 attn_layers=2, block=None,
+                 **kwargs):
+        super(BaseNetNoRes, self).__init__()
+        if block is None:
+            raise ValueError("block type should be provided.")
+        self.vocab_size = vocab_size
+        self.max_len = max_len
+        self.is_pe = is_pe
+        self.embed = nn.Embedding(vocab_size, embed_dim)
+        self.pe = nn.Embedding(max_len, embed_dim) if is_pe else None
+        self.att = nn.ModuleList([block(embed_dim, max_len, **kwargs) for _ in range(attn_layers)])
+        self.ln = nn.ModuleList([LayerNorm(embed_dim, True) for _ in range(attn_layers)])
+        self.head = nn.Linear(embed_dim, vocab_size)
+    
+        print(f"BaseNet with {attn_layers} layers of {block} blocks")
+        print(f"Embedding dimension: {embed_dim}")
+        print(f"Positional Encoding: {is_pe}")
+        print(f"Vocabulary size: {vocab_size}")
+        print(f"Context length: {max_len}")
+        
+    def forward(self, x):
+        b, t = x.size()
+        x = self.embed(x)
+        if self.is_pe:
+            pos = torch.arange(0, t, dtype=torch.long, device=x.device)
+            pe_emb = self.pe(pos) if self.is_pe else 0
+            x = x + pe_emb
+        for layer, ln in zip(self.att, self.ln):
+            x = ln(layer(x))
+            # print(f'{x.size()=}')
+        x = self.head(x)
+        return x
+    
 class RotaryPositionalEmbedding(nn.Module):
     def __init__(self, d_model, max_seq_len):
         super(RotaryPositionalEmbedding, self).__init__()
