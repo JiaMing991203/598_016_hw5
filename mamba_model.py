@@ -14,8 +14,6 @@ class MambaTwo(nn.Module):
         self.embed = nn.Embedding(vocab_size, config.d_model)
         self.mambda = Mamba(config)
         self.norm_f = RMSNorm(self.config.d_model)
-
-        # self.lm_head = nn.Linear(self.config.d_model, self.lm_config.vocab_size, bias=False)
         self.head = nn.Linear(config.d_model, vocab_size)
     def forward(self, x):
         # x : (B, L, D)

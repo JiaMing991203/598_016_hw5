@@ -172,13 +172,13 @@ class RoPEBlock(nn.Module):
         self.context_len = context_len
         self.register_buffer('mask', torch.tril(torch.ones(max_len, max_len)))
     def forward(self, x):
-        # context_len = x.size(1)
+        context_len = x.size(1)
         q, k, v = self.c_attn(x).chunk(3, dim=-1)
         
         # q_slice = q[:, :self.context_len, :]
         # k_slice = k[:, :self.context_len, :]
-        q_slice_rot = (q.transpose(0,1) @ self.rope[:self.context_len]).transpose(0,1)
-        k_slice_rot = (k.transpose(0,1) @ self.rope[:self.context_len]).transpose(0,1)
+        q_slice_rot = (q.transpose(0,1) @ self.rope[:context_len]).transpose(0,1)
+        k_slice_rot = (k.transpose(0,1) @ self.rope[:context_len]).transpose(0,1)
         # q[:, :self.context_len, :] = q_slice_rot
         # k[:, :self.context_len, :] = k_slice_rot
         y = torch.nn.functional.scaled_dot_product_attention(q_slice_rot, k_slice_rot, v, is_causal=True)
